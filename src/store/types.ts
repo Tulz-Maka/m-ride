@@ -48,22 +48,18 @@ export type DriverScreen = 'drive' | 'earnings' | 'roadmap' | 'help' | 'settings
 export type MerchantScreen = 'orders' | 'menu' | 'payouts' | 'hours'
 export type AdminScreen = 'live' | 'drivers' | 'incidents' | 'fares' | 'reports'
 
-export type Province =
-  | 'Gauteng'
-  | 'Western Cape'
-  | 'KwaZulu-Natal'
-  | 'Eastern Cape'
-  | 'Free State'
-  | 'Limpopo'
-  | 'Mpumalanga'
-  | 'North West'
-  | 'Northern Cape'
+export type Province = 'Mpumalanga'
+
+export type MpumalangaDistrict = 'Ehlanzeni' | 'Nkangala' | 'Gert Sibande'
 
 export interface City {
   id: string
   name: string
+  district: MpumalangaDistrict
+  municipality: string
   province: Province
   center: { lat: number; lng: number }
+  keyRoads: string[]
 }
 
 export interface Place {
@@ -189,7 +185,7 @@ export interface Incident {
 }
 
 export interface AppState {
-  version: 2
+  version: 3
   surface: AppSurface
   cityId: string
   riderScreen: RiderScreen

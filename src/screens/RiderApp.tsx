@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { GoogleMapView } from '../components/GoogleMap'
-import { CONFIRMED_POTHOLES, formatRand, formatRandSigned, quoteRide, releaseBadge } from '../store/data'
+import { CONFIRMED_POTHOLES, cityById, formatRand, formatRandSigned, quoteRide, releaseBadge } from '../store/data'
 import { cancellationFeeCents, useStore } from '../store/store'
 import type { PaymentMethod, RideType } from '../store/types'
 
@@ -72,7 +72,7 @@ function Home() {
           </div>
           <div className="muted">Data saver on</div>
         </div>
-        <div style={{ fontSize: 15, color: '#C9D8D5' }}>Sawubona, Lerato · {city.name}</div>
+        <div style={{ fontSize: 15, color: '#C9D8D5' }}>Sawubona, Lerato · {city.name}, MP</div>
         <label htmlFor="dest" className="muted">
           Where to?
         </label>
@@ -105,7 +105,7 @@ function Home() {
           ))}
         </div>
         <div className="note">
-          <b>Road alert:</b> {hazards.length || 3} confirmed potholes near {city.name}. M-Ride routes around them.
+          <b>Road alert:</b> {hazards.length} confirmed potholes near {city.name.split(' (')[0]} ({city.keyRoads.slice(0, 2).join(' / ')}). M-Ride routes around them.
         </div>
         <div className="grid2">
           <button className="box" onClick={() => dispatch({ type: 'SET_RIDER_SCREEN', screen: 'saver' })}>
@@ -115,7 +115,7 @@ function Home() {
             Family · Teen &amp; School
           </button>
         </div>
-        <div className="h">SAVED PLACES · {city.province.toUpperCase()}</div>
+        <div className="h">SAVED PLACES · {city.name.split(' (')[0].toUpperCase()}, MPUMALANGA</div>
         <div className="list">
           {places.slice(0, 4).map((p) => (
             <button
@@ -135,7 +135,7 @@ function Home() {
 }
 
 function Choose() {
-  const { state, dispatch, quotes, pickup, dropoff } = useStore()
+  const { state, dispatch, quotes, pickup, dropoff, city } = useStore()
   const rideQuotes = quotes.filter((q) => ['go', 'share', 'she', 'exec'].includes(q.rideType) || q.rideType === state.selectedRide)
   const selected = quotes.find((q) => q.rideType === state.selectedRide) ?? quotes[1]
   const hazards = CONFIRMED_POTHOLES.filter((p) => p.cityId === state.cityId).map((p) => ({
@@ -155,7 +155,12 @@ function Choose() {
           { ...dropoff, label: 'B', color: '#F2A541' },
         ]}
         hazards={hazards}
-        chip="Route avoids confirmed potholes"
+        cityName={city.name}
+        district={city.district}
+        roadLabels={city.keyRoads}
+        pickupLabel={pickup.address.split(',')[0]}
+        dropoffLabel={dropoff.address.split(',')[0]}
+        chip={`Avoids potholes · ${city.keyRoads[0]}`}
         onBack={() => dispatch({ type: 'SET_RIDER_SCREEN', screen: 'home' })}
       />
       <div className="scroll">
@@ -347,15 +352,25 @@ function School() {
 }
 
 function Food() {
-  const { state, dispatch, pickup, selectedMerchant } = useStore()
-  const cityMerchants = state.merchants.filter((m) => m.cityId === state.cityId)
-  const merchant = selectedMerchant && selectedMerchant.cityId === state.cityId ? selectedMerchant : cityMerchants[0]
+  const { state, dispatch, pickup, selectedMerchant, city } = useStore()
+  const exactCityMerchants = state.merchants.filter((m) => m.cityId === state.cityId)
+  const districtMerchants = state.merchants.filter((m) => cityById(m.cityId).district === city.district)
+  const visibleMerchants = exactCityMerchants.length
+    ? exactCityMerchants
+    : districtMerchants.length
+      ? districtMerchants
+      : state.merchants
+  const showingDistrictFallback = exactCityMerchants.length === 0
+  const merchant =
+    selectedMerchant && visibleMerchants.some((m) => m.id === selectedMerchant.id)
+      ? selectedMerchant
+      : visibleMerchants[0]
   if (!merchant) {
     return (
       <div className="screen">
         <div className="scroll">
           <div className="title">Food · R2</div>
-          <div className="card">No sample merchants in this city yet — try Johannesburg, Cape Town or Durban.</div>
+          <div className="card">No sample Mpumalanga kitchens loaded yet.</div>
           <button className="ghost" onClick={() => dispatch({ type: 'SET_RIDER_SCREEN', screen: 'home' })}>
             Back
           </button>
@@ -375,13 +390,18 @@ function Food() {
     <div className="screen">
       <div className="scroll">
         <div className="title">Food · R2</div>
-        <div className="h">NEARBY EATERIES</div>
-        {cityMerchants.map((m) => (
+        {showingDistrictFallback && (
+          <div className="note">
+            Showing nearby {city.district} District kitchens in Mpumalanga (e.g. Mbombela, Hazyview, eMalahleni, Secunda, Ermelo).
+          </div>
+        )}
+        <div className="h">MPUMALANGA EATERIES · {city.district.toUpperCase()}</div>
+        {visibleMerchants.map((m) => (
           <button key={m.id} className={`opt ${m.id === merchant.id ? 'sel' : ''}`} onClick={() => dispatch({ type: 'SET_MERCHANT', id: m.id })}>
             <span>
               <b>{m.name}</b>
               <small>
-                {m.cuisine} · {m.open ? 'Open' : 'Closed'} · {m.commissionPct}% commission
+                {cityById(m.cityId).name.split(' (')[0]} · {m.cuisine} · {m.open ? 'Open' : 'Closed'} · {m.commissionPct}% commission
               </small>
             </span>
           </button>
@@ -481,7 +501,7 @@ function Dependants() {
 }
 
 function Trip() {
-  const { state, dispatch, activeDriver, pickup, dropoff } = useStore()
+  const { state, dispatch, activeDriver, pickup, dropoff, city } = useStore()
   const trip = state.trip
   const feePreview = useMemo(() => (trip ? cancellationFeeCents(trip, Date.now()) : 0), [trip])
   if (!trip) {
@@ -532,6 +552,11 @@ function Trip() {
           { ...pickup, label: 'A' },
           { ...dropoff, label: 'B', color: '#F2A541' },
         ]}
+        cityName={city.name}
+        district={city.district}
+        roadLabels={city.keyRoads}
+        pickupLabel={trip.pickup.address.split(',')[0]}
+        dropoffLabel={trip.dropoff.address.split(',')[0]}
         banner={banner}
       />
       <div className="scroll">
@@ -631,7 +656,7 @@ function Safety() {
         <div className="title">Safety centre</div>
         <button className="sos" style={{ height: 150, borderRadius: 20, fontSize: 28 }} onClick={() => dispatch({ type: 'SET_SOS', armed: true })}>
           SOS
-          <div style={{ fontSize: 13, fontWeight: 400, padding: '8px 20px' }}>Alert control room + armed response (demo)</div>
+          <div style={{ fontSize: 13, fontWeight: 400, padding: '8px 20px' }}>Alert Mpumalanga control room + armed response (demo)</div>
         </button>
         {state.sosArmed && <div className="toast">Alert raised — see Admin → Incidents</div>}
         <div className="card">

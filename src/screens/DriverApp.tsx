@@ -22,7 +22,7 @@ function Nav() {
 }
 
 function Drive() {
-  const { state, dispatch } = useStore()
+  const { state, dispatch, city } = useStore()
   const online = state.driverOnline
   const trip = state.trip && state.driverAcceptedTripId === state.trip.id ? state.trip : null
   const offer = state.driverOffer
@@ -33,7 +33,9 @@ function Drive() {
           <div className="brand">
             M<span>-</span>Ride <span style={{ color: 'inherit', fontSize: 16 }}>Driver</span>
           </div>
-          <div style={{ fontSize: 13 }}>{online ? 'Online' : 'Offline'}</div>
+          <div style={{ fontSize: 13 }}>
+            {city.name.split(' (')[0]}, MP · {online ? 'Online' : 'Offline'}
+          </div>
         </div>
         <div className="card" style={online ? undefined : { background: '#183B40', border: 'none' }}>
           <span style={{ fontSize: 13 }}>Today</span>
@@ -110,8 +112,8 @@ function Drive() {
         )}
         {!online && (
           <div className="card" style={{ background: '#183B40', border: 'none' }}>
-            <b>Licence check</b>
-            <span style={{ fontSize: 13, color: '#C9D8D5' }}>Operating licence valid until Mar 2027 · Selfie check due today</span>
+            <b>Mpumalanga licence check</b>
+            <span style={{ fontSize: 13, color: '#C9D8D5' }}>MP operating licence valid until Mar 2027 · Selfie check due today</span>
           </div>
         )}
       </div>
@@ -151,14 +153,19 @@ function RoadMap() {
         height={220}
         mode="road"
         hazards={hazards.map((h) => ({ lat: h.lat, lng: h.lng, label: h.road }))}
-        chip={`${hazards.length} confirmed · ${city.name}`}
+        cityName={city.name}
+        district={city.district}
+        roadLabels={city.keyRoads}
+        chip={`${hazards.length} confirmed · ${city.name.split(' (')[0]}, MP`}
       />
       <div className="scroll">
         <div className="title" style={{ fontSize: 26 }}>
           Road intelligence
         </div>
-        <div className="note">3+ reports in 14 days → confirmed. 20+ clean passes → expired. R2 adds shortcut learning.</div>
-        <div className="h">CONFIRMED</div>
+        <div className="note">
+          3+ reports in 14 days → confirmed for {city.municipality} &amp; Mpumalanga Vala Zonke. 20+ clean passes → expired. R2 adds shortcut learning.
+        </div>
+        <div className="h">CONFIRMED · {city.name.split(' (')[0].toUpperCase()}</div>
         <div className="card" style={{ padding: '4px 14px', gap: 0 }}>
           {(hazards.length ? hazards : CONFIRMED_POTHOLES.slice(0, 3)).map((h) => (
             <div className="row" key={h.road}>

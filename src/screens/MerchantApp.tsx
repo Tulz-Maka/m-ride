@@ -1,4 +1,4 @@
-import { formatRand } from '../store/data'
+import { cityById, formatRand } from '../store/data'
 import { useStore } from '../store/store'
 
 function Nav() {
@@ -21,9 +21,10 @@ function Nav() {
 }
 
 export function MerchantApp() {
-  const { state, dispatch, selectedMerchant, city } = useStore()
+  const { state, dispatch, selectedMerchant } = useStore()
   const merchant =
     selectedMerchant ?? state.merchants.find((m) => m.cityId === state.cityId) ?? state.merchants[0]
+  const merchantCity = merchant ? cityById(merchant.cityId) : null
   const foodTrips = [state.trip, ...state.tripsHistory].filter((t) => t && t.type === 'food' && t.merchantId === merchant?.id)
 
   if (!merchant) {
@@ -61,7 +62,7 @@ export function MerchantApp() {
         <div className="card">
           <b>{merchant.name}</b>
           <span style={{ fontSize: 13, color: 'var(--body)' }}>
-            {city.name} · {merchant.cuisine}
+            {merchantCity?.name}, Mpumalanga · {merchant.cuisine}
           </span>
         </div>
         <button className="toggle" style={{ background: merchant.open ? 'var(--teal)' : 'var(--amber)', color: '#fff' }} onClick={() => dispatch({ type: 'MERCHANT_TOGGLE_OPEN' })}>
@@ -109,7 +110,7 @@ export function MerchantApp() {
       <div className="scroll">
         <div className="title">Orders</div>
         <div className="note">
-          Merchant portal · R2 Food. Switch city to see Cape Town / Durban kitchens. Place a Food order in the Rider app to feed this queue.
+          Merchant portal · R2 Food (Mpumalanga). Switch town or kitchen below to view Ehlanzeni, Nkangala &amp; Gert Sibande menus. Place a Food order in the Rider app to feed this queue.
         </div>
         <div className="h">{merchant.name.toUpperCase()}</div>
         {foodTrips.length === 0 ? (
@@ -129,17 +130,20 @@ export function MerchantApp() {
             </div>
           ))
         )}
-        <div className="h">SWITCH KITCHEN</div>
-        {state.merchants.map((m) => (
-          <button key={m.id} className={`opt ${m.id === merchant.id ? 'sel' : ''}`} onClick={() => dispatch({ type: 'SET_MERCHANT', id: m.id })}>
-            <span>
-              <b>{m.name}</b>
-              <small>
-                {m.cityId} · {m.open ? 'Open' : 'Closed'}
-              </small>
-            </span>
-          </button>
-        ))}
+        <div className="h">MPUMALANGA KITCHENS</div>
+        {state.merchants.map((m) => {
+          const mc = cityById(m.cityId)
+          return (
+            <button key={m.id} className={`opt ${m.id === merchant.id ? 'sel' : ''}`} onClick={() => dispatch({ type: 'SET_MERCHANT', id: m.id })}>
+              <span>
+                <b>{m.name}</b>
+                <small>
+                  {mc.name} ({mc.district}) · {m.open ? 'Open' : 'Closed'}
+                </small>
+              </span>
+            </button>
+          )
+        })}
       </div>
     )
   }
@@ -150,7 +154,7 @@ export function MerchantApp() {
         <div className="brand">
           M<span>-</span>Ride <span style={{ fontSize: 16, color: 'inherit' }}>Merchant</span>
         </div>
-        <div className="muted">R2 portal · tablet / web</div>
+        <div className="muted">R2 portal · Mpumalanga kitchens · tablet / web</div>
       </div>
       {body}
       <Nav />

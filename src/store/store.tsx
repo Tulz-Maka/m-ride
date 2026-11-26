@@ -8,7 +8,9 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  CITIES,
   CONFIRMED_POTHOLES,
+  DEFAULT_CITY_ID,
   DEFAULT_MERCHANTS,
   DRIVER_SELF_ID,
   SAMPLE_DRIVERS,
@@ -35,13 +37,13 @@ import type {
   WalletEntry,
 } from './types'
 
-const STORAGE_KEY = 'm-ride-demo-v2'
+const STORAGE_KEY = 'm-ride-demo-v3'
 
 function initialState(): AppState {
-  const cityId = 'jhb'
+  const cityId = DEFAULT_CITY_ID
   const drop = defaultDropoff(cityId)
   return {
-    version: 2,
+    version: 3,
     surface: 'rider',
     cityId,
     riderScreen: 'home',
@@ -57,8 +59,8 @@ function initialState(): AppState {
     walletBalanceCents: 12050,
     walletEntries: [
       { id: 'w1', label: 'Change from cash trip', amountCents: 500, at: Date.now() - 86400000, type: 'credit' },
-      { id: 'w2', label: 'Share ride to work', amountCents: -3600, at: Date.now() - 172800000, type: 'debit' },
-      { id: 'w3', label: 'Spaza top-up', amountCents: 10000, at: Date.now() - 259200000, type: 'topup' },
+      { id: 'w2', label: "Share ride to i'langa Mall", amountCents: -3600, at: Date.now() - 172800000, type: 'debit' },
+      { id: 'w3', label: 'Spaza top-up · Kamagugu', amountCents: 10000, at: Date.now() - 259200000, type: 'topup' },
     ],
     saverPassRemaining: 7,
     trip: null,
@@ -81,7 +83,7 @@ function initialState(): AppState {
     ],
     selectedDependantId: 'dep-teen',
     merchants: DEFAULT_MERCHANTS.map((m) => ({ ...m, menu: m.menu.map((i) => ({ ...i })) })),
-    selectedMerchantId: 'mch-shisa',
+    selectedMerchantId: 'mch-lowveld-shisa',
     foodCart: [],
     incidents: [
       {
@@ -89,9 +91,9 @@ function initialState(): AppState {
         tripId: null,
         type: 'complaint',
         status: 'open',
-        cityId: 'jhb',
+        cityId: 'mbm',
         at: Date.now() - 3600000,
-        notes: 'Rider reported delayed pickup near Orlando.',
+        notes: "Rider reported delayed pickup near i'langa Mall (R40 roadworks).",
       },
     ],
     waStep: 0,
@@ -106,10 +108,17 @@ function loadState(): AppState {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return initialState()
     const parsed = JSON.parse(raw) as AppState
-    if (parsed?.version !== 2) return initialState()
+    if (parsed?.version !== 3) return initialState()
+    const validCity = CITIES.some((c) => c.id === parsed.cityId)
+    const safeCityId = validCity ? parsed.cityId : DEFAULT_CITY_ID
+    const safeDest = placesInCity(safeCityId).some((p) => p.id === parsed.destinationId)
+      ? parsed.destinationId
+      : defaultDropoff(safeCityId).id
     return {
       ...initialState(),
       ...parsed,
+      cityId: safeCityId,
+      destinationId: safeDest,
       toast: '',
       cancelPrompt: false,
       sosArmed: false,
@@ -178,14 +187,21 @@ function ledger(
 }
 
 function pickDriver(ride: RideType, pay: PaymentMethod, cityId: string, optIns?: AppState['driverOptIns']) {
-  let pool = SAMPLE_DRIVERS.filter((d) => d.online && d.cityId === cityId && d.id !== DRIVER_SELF_ID)
-  if (ride === 'she') pool = pool.filter((d) => d.sheEligible)
-  if (ride === 'teen') pool = pool.filter((d) => d.teenEligible && d.rating >= 4.8)
-  if (ride === 'school') pool = pool.filter((d) => d.schoolEligible && d.rating >= 4.8)
-  if (pay === 'cash') pool = pool.filter((d) => d.acceptsCash)
-  // live driver demo eligibility
   void optIns
-  return pool.sort((a, b) => b.rating - a.rating)[0] ?? null
+  const filterPool = (drivers: typeof SAMPLE_DRIVERS) => {
+    let pool = drivers.filter((d) => d.online && d.id !== DRIVER_SELF_ID)
+    if (ride === 'she') pool = pool.filter((d) => d.sheEligible)
+    if (ride === 'teen') pool = pool.filter((d) => d.teenEligible && d.rating >= 4.8)
+    if (ride === 'school') pool = pool.filter((d) => d.schoolEligible && d.rating >= 4.8)
+    if (pay === 'cash') pool = pool.filter((d) => d.acceptsCash)
+    return pool.sort((a, b) => b.rating - a.rating)
+  }
+  const local = filterPool(SAMPLE_DRIVERS.filter((d) => d.cityId === cityId))
+  if (local[0]) return local[0]
+  const district = cityById(cityId).district
+  const inDistrict = filterPool(SAMPLE_DRIVERS.filter((d) => cityById(d.cityId).district === district))
+  if (inDistrict[0]) return inDistrict[0]
+  return filterPool(SAMPLE_DRIVERS)[0] ?? null
 }
 
 export function cancellationFeeCents(trip: Trip, now: number): number {
@@ -239,15 +255,20 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_SURFACE':
       return { ...state, surface: action.surface }
     case 'SET_CITY': {
-      const drop = defaultDropoff(action.cityId)
+      const targetCity = cityById(action.cityId)
+      const drop = defaultDropoff(targetCity.id)
       const merchants = state.merchants
-      const localMerchant = merchants.find((m) => m.cityId === action.cityId)
+      const localMerchant =
+        merchants.find((m) => m.cityId === targetCity.id) ??
+        merchants.find((m) => cityById(m.cityId).district === targetCity.district) ??
+        merchants[0]
       return {
         ...state,
-        cityId: action.cityId,
+        cityId: targetCity.id,
         destinationId: drop.id,
         selectedMerchantId: localMerchant?.id ?? state.selectedMerchantId,
-        toast: `City set to ${cityById(action.cityId).name}`,
+        foodCart: [],
+        toast: `Town set to ${targetCity.name}, Mpumalanga`,
       }
     }
     case 'SET_RIDER_SCREEN': {
@@ -292,7 +313,7 @@ function reducer(state: AppState, action: Action): AppState {
               status: 'open' as const,
               cityId: state.cityId,
               at: Date.now(),
-              notes: 'SOS from rider app — control room + armed response (demo).',
+              notes: `SOS from rider app in ${cityById(state.cityId).name} — Mpumalanga control room + armed response (demo).`,
             },
             ...state.incidents,
           ]

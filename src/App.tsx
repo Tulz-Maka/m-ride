@@ -3,7 +3,7 @@ import { UssdApp, WhatsAppApp } from './screens/ChannelsApp'
 import { DriverApp } from './screens/DriverApp'
 import { MerchantApp } from './screens/MerchantApp'
 import { RiderApp } from './screens/RiderApp'
-import { CITIES, PROVINCES } from './store/data'
+import { CITIES, DISTRICTS, LAUNCH_PROVINCE } from './store/data'
 import { StoreProvider, useStore } from './store/store'
 import type { AppSurface } from './store/types'
 import { hasGoogleMapsKey } from './lib/maps'
@@ -43,9 +43,9 @@ function Shell() {
           M<span>-</span>Ride
         </h1>
         <p>
-          Affordable, safe rides and deliveries for every South African. Full product demo: rider &amp; driver apps,
-          merchant portal, admin console, WhatsApp and USSD booking — with province-aware sample data and a simulated
-          backend (trip lifecycle, fees, wallet ledger, matching).
+          Affordable, safe rides and deliveries launching in <strong>{LAUNCH_PROVINCE} Province</strong>. Full product
+          demo: rider &amp; driver apps, merchant portal, admin console, WhatsApp and USSD booking — across Ehlanzeni,
+          Nkangala and Gert Sibande with a simulated backend (trip lifecycle, fees, wallet ledger, matching).
         </p>
         <div className="role-switch">
           {SURFACES.map((s) => (
@@ -60,12 +60,15 @@ function Shell() {
           <button onClick={() => dispatch({ type: 'RESET_DEMO' })}>Reset</button>
         </div>
         <div className="city-bar">
+          <span className="province-badge" title="Initial launch province">
+            Launch Province: {LAUNCH_PROVINCE}
+          </span>
           <label>
-            City
+            Mpumalanga city / town
             <select value={state.cityId} onChange={(e) => dispatch({ type: 'SET_CITY', cityId: e.target.value })}>
-              {PROVINCES.map((prov) => (
-                <optgroup key={prov} label={prov}>
-                  {CITIES.filter((c) => c.province === prov).map((c) => (
+              {DISTRICTS.map((dist) => (
+                <optgroup key={dist} label={`${dist} District`}>
+                  {CITIES.filter((c) => c.district === dist).map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -75,7 +78,7 @@ function Shell() {
             </select>
           </label>
           <span className="sample-tag">
-            {city.name}, {city.province}
+            {city.name} · {city.district} District, {city.province}
             {mapsOk ? ' · Google Maps on' : ' · Maps placeholder (set VITE_GOOGLE_MAPS_API_KEY)'}
           </span>
         </div>
