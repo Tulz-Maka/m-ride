@@ -1,6 +1,6 @@
-# M-Ride
+# M-Ride (Mpumalanga Launch Demo)
 
-Release demo of M-Ride — affordable, safe rides and deliveries for South Africa.
+Release demo of M-Ride — affordable, safe rides and deliveries launching in **Mpumalanga Province** (Ehlanzeni, Nkangala, and Gert Sibande districts).
 
 ```bash
 npm install
